@@ -202,19 +202,109 @@ Para **compilar e executar** seus códigos-fontes.
 - deve conter imagens da tela capturada,
 - apesar da atividade ser coletiva, relatório deve ser individual.
 
-**Nome:** [Seu Nome]  
-**Data:** [Data]  
+**Nome:** Robson Alves de Alencastro
+**Data:** 24/05/2025 
 
-### **1. Objetivo**  
-[Descreva brevemente o objetivo da prática.]  
+### 1. Objetivo
+O objetivo principal da atividade foi utilizar um Dockerfile para criar um ambiente isolado e configurado com as ferramentas necessárias para compilar e executar os programas em C desenvolvidos na aula anterior. O Dockerfile foi configurado com uma imagem base do Fedora e o shell Fish, sendo necessário instalar manualmente o compilador GCC e suas dependências para garantir o funcionamento correto dos códigos. Com o ambiente pronto, foi possível testar os conceitos de S.O em C:
 
-### **2. Passos Executados**  
-- [Liste os comandos usados e suas funções.]  
-- [Inclua prints (opcional).]  
+* Criação de processos filhos com fork()
 
-### **3. Resultados Obtidos**  
-- [Saída do programa em C.]  
-- [Problemas enfrentados e soluções.]  
+* Substituição de programas em execução com execve()
 
-### **4. Conclusão**  
-[Comente sobre a experiência e possíveis aplicações.]  
+* Sincronização entre processos pai e filho usando wait()
+
+* Execução concorrente com múltiplas threads (pthread)
+
+* Esses experimentos permitiram observar na prática como um sistema operacional gerencia processos e threads, além de reforçar a importância do Docker na padronização de ambientes de desenvolvimento.
+
+### 2. Passos Executados  
+####  Comando 1  : Construção da Imagem Docker
+Comando: docker build -t minha-imagem-fedora .
+Esse comando cria uma imagem Docker a partir do Dockerfile no diretório atual.
+![image](https://github.com/user-attachments/assets/a3fd625e-2902-487a-ba05-00318a9f28c1)
+
+
+Função:
+
+Constrói uma nova imagem Docker a partir do Dockerfile presente no diretório atual.
+
+A flag -t define o nome da imagem como minha-imagem-fedora.
+
+O . no final indica que o contexto de construção é o diretório atual (onde estão o Dockerfile, fork.c e thread.c).
+
+####  Comando 2: docker run -it --rm -v ${PWD}:/app minha-imagem-fedora
+Esse comando executa um contêiner Docker com um volume compartilhado entre o contêiner e o host, removendo o contêiner após a conclusão.
+
+![image](https://github.com/user-attachments/assets/b0c737c2-9f2b-483c-bb6c-86bb12c2fffa)
+
+#### Comando 3: ls -l
+O comando é utilizado para visualizar as informações sobre os arquivos e diretórios disponíveis.
+
+![image](https://github.com/user-attachments/assets/7ce02ea6-3395-4291-b61f-aebeba7e1ad3)
+
+#### Comando 4: dnf update -y
+Esse comando atualiza todos os pacotes instalados no sistema para as versões mais recentes disponíveis nos repositórios. A opção -y confirma automaticamente todas as solicitações, permitindo que o processo ocorra sem interrupções.
+
+![image](https://github.com/user-attachments/assets/f249e667-760c-4155-9b12-b3e0d32340bd)
+
+O que acontece durante o build:
+
+1.O Docker lê as instruções do Dockerfile.
+
+2.Instala as dependências (gcc, glibc-devel, etc.) na imagem base do Fedora.
+
+3.Copia os arquivos fork.c e thread.c para o diretório /app no container.
+
+4.Compila os programas, gerando os executáveis fork_program e thread_program.
+
+
+## 3. Resultados Obtidos
+#### Primeiro Programa: fork.c
+![image](https://github.com/user-attachments/assets/79b6e3a4-b6db-4297-8534-22fe896fc2d2)
+
+O código em questão utiliza a função fork() para criar um processo filho. O processo pai aguarda a finalização do filho antes de continuar sua execução, utilizando a função wait().
+
+Após ser criado, o processo filho executa o comando /bin/date por meio da função execve(), o que substitui o código do processo filho pela execução do comando, exibindo a data e hora atual.
+
+Após a chamada de execve(), o processo filho imprime a data e, em seguida, tanto o pai quanto o filho exibem a mensagem "Tchau !".
+
+Problemas enfrentados e soluções:
+A saída esperada seria:
+
+yaml
+Copiar
+Editar
+Fri May Data/Hora
+Tchau !
+Tchau !
+No entanto, foi exibido apenas um:
+
+yaml
+Copiar
+Editar
+Fri May Data/Hora
+Tchau !
+Isso ocorreu porque o processo filho foi substituído pelo comando date após a execução da função execve(), e, com isso, não executou o printf("Tchau !") que vinha depois. A função execve() não retorna em caso de sucesso, pois o processo atual é completamente substituído pela nova execução.
+
+Como resultado, apenas o processo pai executou o printf("Tchau !").
+
+✅ Solução:
+Para que ambos os processos (pai e filho) imprimam "Tchau !", o printf("Tchau !") no processo filho deve ser colocado antes da chamada ao execve(). Assim, a mensagem será exibida antes que o processo seja substituído pelo comando date.
+
+#### Segundo programa: Thread.c
+
+![image](https://github.com/user-attachments/assets/75bd0dfd-fade-4dcc-9a80-01f3423646b7)
+
+
+O código cria cinco threads, e cada uma delas executa a mesma rotina: imprime "Hello World!", aguarda 5 segundos e, em seguida, imprime "Bye bye World!". Como as threads são executadas de forma concorrente, a ordem das mensagens pode variar a cada execução, mas todas seguem esse mesmo padrão de comportamento.
+
+
+### 4. Conclusão  
+Os códigos mostraram na prática conceitos importantes de concorrência e paralelismo. Com fork() e execve(), foi possível criar processos que rodam de forma paralela, cada um com sua própria execução. Já com pthread_create(), conseguimos criar várias threads que funcionam dentro do mesmo processo, executando tarefas ao mesmo tempo. Também usamos wait() e pthread_exit() para garantir que tudo aconteça na ordem certa, sem conflitos.
+
+Tudo foi rodado em um ambiente isolado criado com Docker, o que garantiu que os testes fossem consistentes e fáceis de repetir. O uso do Docker ajudou bastante, pois cria um ambiente limpo e controlado, ideal para desenvolvimento e testes.
+
+Esses conceitos são muito úteis em sistemas que precisam lidar com várias tarefas ao mesmo tempo, como servidores web, jogos, sistemas de monitoramento ou aplicações que processam muitos dados. O uso de fork() e execve() pode ser ideal quando se quer processos separados para lidar com diferentes requisições. Já as threads funcionam melhor quando precisamos de mais leveza e rapidez, como em aplicações em tempo real.
+
+Aprender e aplicar essas ideias é um passo importante para quem quer desenvolver sistemas mais eficientes e preparados para grandes cargas.
